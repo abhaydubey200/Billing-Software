@@ -1,0 +1,131 @@
+name: CI
+
+# Go and Flutter checks (see docs/decisions/adr-0009-github-actions-ci.md).
+#
+# The Go and Flutter projects do not exist yet. Each job detects whether its
+# project is present and skips cleanly if it is not, so pull requests are not
+# blocked before the code lands. Once backend/api/go.mod or
+# apps/retail_app/pubspec.yaml exists, the matching job starts running for real.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Cancel superseded runs on the same ref so only the latest commit is checked.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # TODO: pin the exact Flutter version once apps/retail_app is created
+  # (docs/decisions/adr-0006-development-workflow.md requires pinned versions).
+  FLUTTER_CHANNEL: stable
+
+jobs:
+  go:
+    name: Go
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Detect Go module
+        id: detect
+        run: |
+          if [ -f backend/api/go.mod ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Go checks skipped::backend/api/go.mod not found yet."
+          fi
+
+      - name: Set up Go
+        if: steps.detect.outputs.found == 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/api/go.mod
+          cache: true
+          cache-dependency-path: backend/api/go.sum
+
+      - name: Download dependencies
+        if: steps.detect.outputs.found == 'true'
+        working-directory: backend/api
+        run: go mod download
+
+      - name: Verify formatting
+        if: steps.detect.outputs.found == 'true'
+        working-directory: backend/api
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "These files are not gofmt-formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet
+        if: steps.detect.outputs.found == 'true'
+        working-directory: backend/api
+        run: go vet ./...
+
+      - name: Test
+        if: steps.detect.outputs.found == 'true'
+        working-directory: backend/api
+        run: go test ./... -race -count=1
+
+      - name: Report skipped
+        if: steps.detect.outputs.found != 'true'
+        run: echo "No Go module at backend/api/go.mod — Go checks skipped."
+
+  flutter:
+    name: Flutter
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Detect Flutter project
+        id: detect
+        run: |
+          if [ -f apps/retail_app/pubspec.yaml ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Flutter checks skipped::apps/retail_app/pubspec.yaml not found yet."
+          fi
+
+      - name: Set up Flutter
+        if: steps.detect.outputs.found == 'true'
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Install dependencies
+        if: steps.detect.outputs.found == 'true'
+        working-directory: apps/retail_app
+        run: flutter pub get
+
+      - name: Verify formatting
+        if: steps.detect.outputs.found == 'true'
+        working-directory: apps/retail_app
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Analyze
+        if: steps.detect.outputs.found == 'true'
+        working-directory: apps/retail_app
+        run: flutter analyze
+
+      - name: Test
+        if: steps.detect.outputs.found == 'true'
+        working-directory: apps/retail_app
+        run: flutter test
+
+      - name: Report skipped
+        if: steps.detect.outputs.found != 'true'
+        run: echo "No Flutter project at apps/retail_app/pubspec.yaml — Flutter checks skipped."
