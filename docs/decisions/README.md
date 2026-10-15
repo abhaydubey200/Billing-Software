@@ -20,6 +20,16 @@ row to the index. Do not rewrite history — supersede instead.
 | [0007](./adr-0007-defer-premature-infrastructure.md) | Defer Kubernetes, Kafka and service extraction | Accepted |
 | [0008](./adr-0008-security-and-tenant-isolation.md) | Security and shop-level tenant isolation baseline | Accepted |
 | [0009](./adr-0009-github-actions-ci.md) | GitHub Actions for automated checks | Accepted |
+| [0010](./adr-0010-configurable-inventory-and-units.md) | Configurable multi-industry inventory and units of measure | Accepted |
+| [0011](./adr-0011-financial-transaction-integrity.md) | Financial transaction integrity, stock movements, returns and invoice snapshots | Accepted |
+| [0012](./adr-0012-account-provisioning-and-offline-auth.md) | Account provisioning, credential reset, offline authentication and provider/shop isolation | Accepted |
+| [0013](./adr-0013-invoice-numbering-and-tax-boundaries.md) | Invoice numbering and tax-compliance boundaries | Accepted |
+
+The table above is the authoritative index. ADRs 0001–0009 predate the wider
+product decisions recorded in 0010–0013; those newer records **extend** the
+existing accepted decisions rather than superseding them. No accepted ADR is
+currently superseded or amended. Where a record relates to another, it lists the
+relationship in a `Related:` header line.
 
 ## Template
 
